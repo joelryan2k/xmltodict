@@ -32,6 +32,21 @@ __version__ = '0.12.0'
 __license__ = 'MIT'
 
 
+class ComplexExpression(object):
+    def items(self):
+        return iter([])
+
+    def emit(self, content_handler, continue_emit_fn):
+        raise Exception('not implemented')
+
+class RepeatingSortedElementsExpression(ComplexExpression):
+    def __init__(self, elements):
+        self.elements = elements
+
+    def emit(self, content_handler, continue_emit_fn):
+        for el, content in self.elements:
+            continue_emit_fn([(el, content)])
+
 class ParsingInterrupted(Exception):
     pass
 
@@ -422,6 +437,8 @@ def _emit(key, value, content_handler,
                 v = _unicode('true')
             else:
                 v = _unicode('false')
+        elif isinstance(v, ComplexExpression):
+            pass
         elif not isinstance(v, dict):
             if expand_iter and hasattr(v, '__iter__') and not isinstance(v, _basestring):
                 v = OrderedDict(((expand_iter, v),))
@@ -454,16 +471,25 @@ def _emit(key, value, content_handler,
         content_handler.startElement(key, AttributesImpl(attrs))
         if pretty and children:
             content_handler.ignorableWhitespace(newl)
-        for child_key, child_value in children:
-            _emit(child_key, child_value, content_handler,
-                  attr_prefix, cdata_key, depth+1, preprocessor,
-                  pretty, newl, indent, namespaces=namespaces,
-                  namespace_separator=namespace_separator,
-                  expand_iter=expand_iter)
+
+        def continue_emit_fn(children):
+            for child_key, child_value in children:
+                _emit(child_key, child_value, content_handler,
+                    attr_prefix, cdata_key, depth+1, preprocessor,
+                    pretty, newl, indent, namespaces=namespaces,
+                    namespace_separator=namespace_separator,
+                    expand_iter=expand_iter)
+
+        continue_emit_fn(children)
+
         if cdata is not None:
             content_handler.characters(cdata)
         if pretty and children:
             content_handler.ignorableWhitespace(depth * indent)
+
+        if isinstance(v, ComplexExpression):
+            v.emit(content_handler, continue_emit_fn)
+
         content_handler.endElement(key)
         if pretty and depth:
             content_handler.ignorableWhitespace(newl)

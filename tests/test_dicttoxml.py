@@ -1,5 +1,5 @@
 import sys
-from xmltodict import parse, unparse
+from xmltodict import parse, unparse, RepeatingSortedElementsExpression
 from collections import OrderedDict
 
 import unittest
@@ -212,4 +212,13 @@ xmlns:b="http://b.com/"><x a:attr="val">1</x><a:y>2</a:y><b:z>3</b:z></root>'''
 
         expected_xml = '<?xml version="1.0" encoding="utf-8"?>\n<x>false</x>'
         xml = unparse(dict(x=False))
+        self.assertEqual(xml, expected_xml)
+
+    def test_repeating_sorted_elements_expression_unparse(self):
+        expected_xml = '<?xml version="1.0" encoding="utf-8"?>\n<x><a b="3"></a><b><z k="1">something</z></b><a></a></x>'
+        xml = unparse(dict(x=RepeatingSortedElementsExpression([
+            ('a', {'@b': '3'}),
+            ('b', {'z': {'#text': 'something', '@k': '1'}}),
+            ('a', None),
+        ])))
         self.assertEqual(xml, expected_xml)
